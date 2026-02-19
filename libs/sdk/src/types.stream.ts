@@ -260,6 +260,16 @@ export type ToolsStreamEvent = {
   };
 };
 
+export type ToolProgress = {
+  toolCallId?: string;
+  name: string;
+  state: "starting" | "running" | "completed" | "error";
+  input?: unknown;
+  data?: unknown;
+  result?: unknown;
+  error?: unknown;
+};
+
 /** @internal */
 export type SubgraphToolsStreamEvent = AsSubgraph<ToolsStreamEvent>;
 

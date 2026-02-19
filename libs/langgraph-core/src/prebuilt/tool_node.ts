@@ -179,7 +179,7 @@ export class ToolNode<T = any> extends RunnableCallable<T, T> {
       }
       const output = await tool.invoke(
         { ...call, type: "tool_call" },
-        { ...config, metadata: { toolCallId: call.id } }
+        { ...config, metadata: { ...config.metadata, toolCallId: call.id } }
       );
 
       if (

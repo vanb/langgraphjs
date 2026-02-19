@@ -32,7 +32,7 @@ import { Client, getClientConfigHash } from "../client.js";
 import { type Message } from "../types.messages.js";
 import { getToolCallsWithResults } from "../utils/tools.js";
 import type { Interrupt, ThreadState } from "../schema.js";
-import type { StreamMode } from "../types.stream.js";
+import type { StreamMode, ToolProgress, ToolsStreamEvent } from "../types.stream.js";
 import { MessageTupleManager } from "../ui/messages.js";
 import { useControllableThreadId } from "./thread.js";
 import type { StreamEvent } from "../types.js";
@@ -293,6 +293,48 @@ export function useStreamLGP<
   const [branch, setBranch] = useState<string>("");
   const branchContext = getBranchContext(branch, history.data ?? undefined);
 
+  const [toolProgressMap, setToolProgressMap] = useState<Map<string, ToolProgress>>(new Map());
+
+  const handleToolEvent = useCallback((data: ToolsStreamEvent["data"]) => {
+    setToolProgressMap(prev => {
+      const next = new Map(prev);
+      const key = data.toolCallId ?? `${data.name}-${Date.now}`;
+      const existing = next.get(key);
+
+      switch (data.event) {
+        case "on_tool_start": {
+          next.set(key, {
+            toolCallId: data.toolCallId,
+            name: data.name,
+            state: "starting",
+            input: data.input,
+          });
+          break;
+        }
+        case "on_tool_partial": {
+          if (existing) {
+            next.set(key, { ...existing, state: "running", data: data.data });
+          }
+          break;
+        }
+        case "on_tool_end": {
+          if (existing) {
+            next.set(key, { ...existing, state: "completed", result: data.output });
+          }
+          break;
+        }
+        case "on_tool_error": {
+          if (existing) {
+            next.set(key, { ...existing, state: "error", error: data.error });
+          }
+          break;
+        }
+      }
+
+      return next;
+    });
+  }, []);
+
   const historyValues =
     branchContext.threadHead?.values ??
     options.initialValues ??
@@ -519,7 +561,13 @@ export function useStreamLGP<
         setMessages,
 
         initialValues: historyValues,
-        callbacks: options,
+        callbacks: {
+          ...options,
+          onToolEvent: (data, opts) => {
+            handleToolEvent(data);
+            options.onToolEvent?.(data, opts);
+          }
+        },
 
         async onSuccess() {
           if (rejoinKey) runMetadataStorage?.removeItem(rejoinKey);
@@ -724,6 +772,11 @@ export function useStreamLGP<
       trackStreamMode("messages-tuple", "values");
       const msgs = getMessages(values) as Message<ToolCallType>[];
       return getToolCallsWithResults<ToolCallType>(msgs);
+    },
+
+    get toolProgress(): ToolProgress[] {
+      trackStreamMode("tools");
+      return Array.from(toolProgressMap.values());
     },
 
     getToolCalls(message) {
