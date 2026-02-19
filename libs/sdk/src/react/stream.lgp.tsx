@@ -227,6 +227,7 @@ export function useStreamLGP<
   const hasDebugListener = options.onDebugEvent != null;
   const hasCheckpointListener = options.onCheckpointEvent != null;
   const hasTaskListener = options.onTaskEvent != null;
+  const hasToolListener = options.onToolEvent != null;
 
   const callbackStreamMode = useMemo(() => {
     const modes: Exclude<StreamMode, "messages">[] = [];
@@ -236,6 +237,7 @@ export function useStreamLGP<
     if (hasDebugListener) modes.push("debug");
     if (hasCheckpointListener) modes.push("checkpoints");
     if (hasTaskListener) modes.push("tasks");
+    if (hasToolListener) modes.push("tools");
     return modes;
   }, [
     hasUpdateListener,
@@ -244,6 +246,7 @@ export function useStreamLGP<
     hasDebugListener,
     hasCheckpointListener,
     hasTaskListener,
+    hasToolListener,
   ]);
 
   const threadIdRef = useRef<string | null>(threadId);
