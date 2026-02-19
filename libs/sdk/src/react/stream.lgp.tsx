@@ -298,7 +298,7 @@ export function useStreamLGP<
   const handleToolEvent = useCallback((data: ToolsStreamEvent["data"]) => {
     setToolProgressMap(prev => {
       const next = new Map(prev);
-      const key = data.toolCallId ?? `${data.name}-${Date.now}`;
+      const key = data.toolCallId ?? `${data.name}-${Date.now()}`;
       const existing = next.get(key);
 
       switch (data.event) {
@@ -431,6 +431,8 @@ export function useStreamLGP<
     values: UpdateType | null | undefined,
     submitOptions?: SubmitOptions<StateType, ConfigurableType>
   ) => {
+    setToolProgressMap(new Map());
+
     // Unbranch things
     const checkpointId = submitOptions?.checkpoint?.checkpoint_id;
     setBranch(
@@ -607,6 +609,8 @@ export function useStreamLGP<
       }) => boolean;
     }
   ) => {
+    setToolProgressMap(new Map());
+
     // eslint-disable-next-line no-param-reassign
     lastEventId ??= "-1";
     if (!threadId) return;
@@ -636,7 +640,13 @@ export function useStreamLGP<
         setMessages,
 
         initialValues: historyValues,
-        callbacks: options,
+        callbacks: {
+          ...options,
+          onToolEvent: (data, opts) => {
+            handleToolEvent(data);
+            options.onToolEvent?.(data, opts);
+          }
+        },
         async onSuccess() {
           runMetadataStorage?.removeItem(`lg:stream:${threadId}`);
           const newHistory = await history.mutate(threadId);
